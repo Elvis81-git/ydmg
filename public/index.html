@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>你畫我猜 - 即時連線遊戲</title>
+  <!-- Google Fonts Noto Sans TC and Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Global Neon Background elements -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <div class="app-container">
+    
+    <!-- 1. LANDING PAGE -->
+    <section id="screen-login" class="screen active">
+      <div class="glass-card login-card">
+        <h1 class="logo-text">你畫我猜</h1>
+        <p class="subtitle">多人即時連線畫畫猜題遊戲</p>
+        
+        <div class="input-group">
+          <label for="input-nickname">設定您的暱稱</label>
+          <div class="nickname-input-wrapper">
+            <input type="text" id="input-nickname" placeholder="輸入您的暱稱..." maxlength="15">
+            <button id="btn-random-nickname" class="btn btn-secondary" title="隨機產生暱稱">🎲 隨機</button>
+          </div>
+        </div>
+
+        <button id="btn-enter-lobby" class="btn btn-primary btn-block">進入大廳</button>
+      </div>
+    </section>
+
+    <!-- 2. LOBBY LIST PAGE -->
+    <section id="screen-lobby-list" class="screen">
+      <div class="lobby-header">
+        <div class="user-profile">
+          <span class="avatar">🎨</span>
+          <div>
+            <span class="user-nickname-display" id="user-nickname-display">載入中...</span>
+            <small class="user-status">在線</small>
+          </div>
+        </div>
+        <button id="btn-open-create-modal" class="btn btn-primary">+ 建立大廳</button>
+      </div>
+
+      <div class="lobby-content">
+        <div class="section-title">
+          <h2>大廳列表</h2>
+          <button id="btn-refresh-lobbies" class="btn btn-icon" title="重新整理">🔄</button>
+        </div>
+        
+        <div class="lobby-rooms-container" id="lobby-rooms-container">
+          <!-- Rooms will be inserted here dynamically -->
+          <div class="empty-rooms">
+            <p>目前沒有任何大廳</p>
+            <small>點擊右上角「建立大廳」來開啟新的遊戲！</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create Room Modal (Overlay) -->
+      <div id="create-room-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-card">
+          <h3>建立遊戲房間</h3>
+          <div class="input-group">
+            <label for="create-room-name">房間名稱</label>
+            <input type="text" id="create-room-name" placeholder="輸入房間名稱 (選填)..." maxlength="20">
+          </div>
+          
+          <div class="input-group">
+            <label>題目難度</label>
+            <div class="difficulty-options">
+              <label class="diff-radio">
+                <input type="radio" name="room-difficulty" value="normal" checked>
+                <div class="diff-btn">
+                  <span class="title">一般難度</span>
+                  <span class="desc">單一角色/動物 或 動作</span>
+                </div>
+              </label>
+              <label class="diff-radio">
+                <input type="radio" name="room-difficulty" value="difficult">
+                <div class="diff-btn">
+                  <span class="title">困難難度</span>
+                  <span class="desc">角色/動物 + 動作的隨機組合</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="btn-close-create-modal" class="btn btn-secondary">取消</button>
+            <button id="btn-confirm-create-room" class="btn btn-primary">確認建立</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ROOM WAITING PAGE -->
+    <section id="screen-room-lobby" class="screen">
+      <div class="room-header">
+        <div class="room-info-meta">
+          <span class="room-title" id="room-lobby-title">房間名稱</span>
+          <span class="badge" id="room-lobby-diff-badge">一般</span>
+        </div>
+        <button id="btn-leave-room" class="btn btn-danger btn-sm">離開房間</button>
+      </div>
+
+      <div class="room-lobby-layout">
+        <!-- Players List -->
+        <div class="players-panel glass-card">
+          <h4>玩家名單 (<span id="room-player-count">0</span>/10)</h4>
+          <div class="players-list-scroll" id="room-players-list">
+            <!-- Dynamic players list -->
+          </div>
+        </div>
+
+        <!-- Chat / Info Log -->
+        <div class="chat-panel glass-card">
+          <h4>房間日誌</h4>
+          <div class="chat-messages" id="room-chat-messages">
+            <!-- System messages -->
+          </div>
+          <div class="chat-action-waiting">
+            <p class="waiting-tip">等候全員準備後將自動開始遊戲...</p>
+            <button id="btn-toggle-ready" class="btn btn-success btn-block btn-ready">準備完成</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ACTIVE GAME PAGE -->
+    <section id="screen-game" class="screen">
+      <!-- Game Info Header -->
+      <div class="game-header">
+        <div class="game-meta">
+          <span class="round-num" id="game-round-info">回合 1/1</span>
+          <span class="current-drawer-name">畫手: <strong id="game-drawer-nickname">--</strong></span>
+        </div>
+        
+        <div class="timer-container" id="timer-box">
+          <div class="timer-progress-bar">
+            <div class="timer-progress" id="timer-bar" style="width: 100%;"></div>
+          </div>
+          <span class="timer-text" id="game-timer-text">120s</span>
+        </div>
+      </div>
+
+      <!-- Secret Word Header (Custom styled banner) -->
+      <div class="word-banner" id="game-word-banner">
+        <span class="prompt-label">題目：</span>
+        <span class="prompt-word" id="game-word-display">?????</span>
+      </div>
+
+      <!-- Main Game Grid -->
+      <div class="game-layout">
+        <!-- Canvas Side -->
+        <div class="canvas-area">
+          <div class="canvas-container">
+            <canvas id="game-canvas" width="800" height="600"></canvas>
+            
+            <!-- Lock Overlay (displayed in guess-only stage) -->
+            <div id="canvas-lock-overlay" class="canvas-overlay hidden">
+              <div class="lock-content">
+                <span class="lock-icon">🔒</span>
+                <p>畫板已鎖定，抓緊時間猜題！</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Drawing Tools (Only visible to Drawer) -->
+          <div class="drawing-tools-bar hidden" id="drawing-tools-bar">
+            <!-- Colors selection -->
+            <div class="color-palette">
+              <button class="color-btn active" style="background-color: #000000;" data-color="#000000"></button>
+              <button class="color-btn" style="background-color: #ff3b30;" data-color="#ff3b30"></button>
+              <button class="color-btn" style="background-color: #ffcc00;" data-color="#ffcc00"></button>
+              <button class="color-btn" style="background-color: #4cd964;" data-color="#4cd964"></button>
+              <button class="color-btn" style="background-color: #5ac8fa;" data-color="#5ac8fa"></button>
+              <button class="color-btn" style="background-color: #5856d6;" data-color="#5856d6"></button>
+              <button class="color-btn eraser" style="background-color: #ffffff;" data-color="#ffffff" title="橡皮擦">🧹</button>
+            </div>
+            
+            <!-- Brush options and clear btn -->
+            <div class="brush-settings">
+              <div class="brush-size-picker">
+                <span class="brush-indicator" id="brush-indicator" style="width: 8px; height: 8px;"></span>
+                <input type="range" id="brush-size-slider" min="2" max="30" value="8" step="1">
+              </div>
+              <button id="btn-clear-canvas" class="btn btn-secondary btn-sm">清除畫板</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guesses & Scoreboard Side -->
+        <div class="game-sidebar">
+          <!-- Mini Scoreboard -->
+          <div class="game-scores glass-card">
+            <h5>玩家積分</h5>
+            <div class="scores-list" id="game-scores-list">
+              <!-- Score rows -->
+            </div>
+          </div>
+
+          <!-- Live Guess Chat -->
+          <div class="game-guess-chat glass-card">
+            <h5>猜題日誌 / 聊天室</h5>
+            <div class="guess-messages" id="game-guess-messages">
+              <!-- Guesses & messages -->
+            </div>
+            
+            <!-- Guess Input form (only for Guessers) -->
+            <form id="form-guess" class="guess-input-form">
+              <input type="text" id="input-guess" placeholder="輸入你的答案..." autocomplete="off" maxlength="30">
+              <button type="submit" class="btn btn-primary">猜</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ROUND END SCREEN (MODAL OVERLAY) -->
+    <div id="overlay-round-end" class="modal-overlay hidden">
+      <div class="glass-card result-card">
+        <h2 class="result-title">回合結束</h2>
+        <div class="result-info">
+          <p class="correct-answer-text">正確答案是：<strong id="round-end-answer">熊貓爬樹</strong></p>
+          
+          <div class="winner-announcement" id="round-end-winner-announcement">
+            <span class="winner-trophy">🏆</span>
+            <span class="winner-text">恭喜 <strong>小明</strong> 猜中答案！</span>
+          </div>
+
+          <div class="drawer-penalty-announcement hidden" id="round-end-penalty-announcement">
+            <span class="penalty-icon">❌</span>
+            <span class="penalty-text">畫手超時未被猜出，扣除 1 分！</span>
+          </div>
+        </div>
+        
+        <div class="next-round-countdown">
+          <p><span id="round-end-countdown-secs">5</span> 秒後進入下一回合...</p>
+        </div>
+        
+        <!-- Protest Action Bar -->
+        <div id="protest-action-bar" class="protest-action-bar hidden">
+          <p class="protest-tip">如果不服畫手判定，可在倒數結束前提出抗議：</p>
+          <button id="btn-protest" class="btn btn-danger btn-sm">🚨 提出抗議</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5.5 PROTEST VOTING SCREEN (MODAL OVERLAY) -->
+    <div id="overlay-protest-vote" class="modal-overlay hidden">
+      <div class="glass-card result-card">
+        <h2 class="result-title text-warning">抗議投票</h2>
+        <div class="result-info">
+          <p class="protest-msg">玩家 <strong id="protest-protester">--</strong> 對畫手判定 <strong id="protest-guesser">--</strong> 的回答「<span id="protest-guess-text">--</span>」正確提出抗議！</p>
+          <p>您是否同意畫手的判定？</p>
+          <div class="vote-buttons">
+            <button id="btn-vote-agree" class="btn btn-success">同意 (判定正確)</button>
+            <button id="btn-vote-disagree" class="btn btn-danger">反對 (判定無效)</button>
+          </div>
+          <div class="vote-status-bar">
+            <span>同意: <strong id="vote-count-agree">0</strong> 票</span>
+            <span>反對: <strong id="vote-count-disagree">0</strong> 票</span>
+          </div>
+        </div>
+        <div class="next-round-countdown">
+          <p>投票剩餘時間：<span id="protest-countdown-secs">5</span> 秒</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. GAME OVER SCREEN -->
+    <section id="screen-game-over" class="screen">
+      <div class="glass-card game-over-card">
+        <h1 class="logo-text neon-red">遊戲結束</h1>
+        <p class="subtitle">最終積分排行榜</p>
+        
+        <div class="leaderboard-container" id="final-leaderboard">
+          <!-- Final scores -->
+        </div>
+
+        <button id="btn-return-lobby" class="btn btn-primary btn-block btn-lg">返回大廳</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Socket.io library -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Main Game Client Script -->
+  <script src="js/game.js"></script>
+</body>
+</html>
