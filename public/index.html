@@ -185,7 +185,28 @@
               <button class="color-btn" style="background-color: #4cd964;" data-color="#4cd964"></button>
               <button class="color-btn" style="background-color: #5ac8fa;" data-color="#5ac8fa"></button>
               <button class="color-btn" style="background-color: #5856d6;" data-color="#5856d6"></button>
+              <button class="color-btn rainbow-btn" id="btn-rainbow-picker" title="彩色畫筆">🌈</button>
               <button class="color-btn eraser" style="background-color: #ffffff;" data-color="#ffffff" title="橡皮擦">🧹</button>
+            </div>
+
+            <!-- Rainbow Color Picker Popover -->
+            <div id="popover-rainbow-picker" class="rainbow-picker-popover hidden">
+              <div class="popover-header">
+                <span>自訂色彩 (HSL)</span>
+                <button type="button" id="btn-close-rainbow-picker" class="popover-close">✕</button>
+              </div>
+              <div class="popover-body">
+                <div class="hue-slider-container">
+                  <label>1. 選擇色相 (Hue)：</label>
+                  <input type="range" id="hue-slider" min="0" max="360" value="0" class="hue-slider">
+                </div>
+                <div class="shades-grid-container" style="margin-top: 8px;">
+                  <label>2. 選擇該色相下的顏色：</label>
+                  <div id="shades-grid" class="shades-grid">
+                    <!-- Dynamic generation in JS -->
+                  </div>
+                </div>
+              </div>
             </div>
             
             <!-- Brush options and clear btn -->
@@ -275,6 +296,16 @@
         <div class="next-round-countdown">
           <p>投票剩餘時間：<span id="protest-countdown-secs">5</span> 秒</p>
         </div>
+      </div>
+    </div>
+
+    <!-- 5.8 CLOWN PENALTY SCREEN (MODAL OVERLAY) -->
+    <div id="overlay-clown" class="modal-overlay hidden">
+      <div class="glass-card result-card clown-card">
+        <span class="clown-emoji">🤡</span>
+        <h2 class="result-title text-danger">您是小丑！</h2>
+        <p class="clown-tip">對完全正確的答案提出無理抗議，倒扣 1 分以示懲罰！</p>
+        <button id="btn-close-clown" class="btn btn-secondary btn-sm">我知道錯了</button>
       </div>
     </div>
 

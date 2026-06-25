@@ -7,6 +7,7 @@ let currentRoomId = null;
 let isDrawer = false;
 let isGameStageLocked = false; // Lock drawing when stage changes to 'guess'
 let roundEndTimer = null; // Store round-end countdown timer reference
+let cooldownTimer = null; // Store guess cooldown timer reference
 
 // Canvas Drawing State
 const canvas = document.getElementById('game-canvas');
@@ -141,13 +142,79 @@ const guessInput = document.getElementById('input-guess');
 const canvasLockOverlay = document.getElementById('canvas-lock-overlay');
 const drawingToolsBar = document.getElementById('drawing-tools-bar');
 
+// Custom HSL Picker DOM Elements
+const btnRainbowPicker = document.getElementById('btn-rainbow-picker');
+const popoverRainbowPicker = document.getElementById('popover-rainbow-picker');
+const btnCloseRainbowPicker = document.getElementById('btn-close-rainbow-picker');
+const hueSlider = document.getElementById('hue-slider');
+const shadesGrid = document.getElementById('shades-grid');
+
+// Generate 25 shades under selected Hue (5 Saturation levels x 5 Lightness levels)
+function generateShadesGrid(hue) {
+  shadesGrid.innerHTML = '';
+  const lightnessValues = [85, 70, 50, 35, 20];
+  const saturationValues = [100, 80, 60, 40, 20];
+  
+  lightnessValues.forEach(lightness => {
+    saturationValues.forEach(saturation => {
+      const cell = document.createElement('div');
+      cell.className = 'shade-cell';
+      const colorString = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+      cell.style.backgroundColor = colorString;
+      cell.title = colorString;
+      
+      // If this cell matches the current selected color, mark it active
+      if (currentColor === colorString) {
+        cell.classList.add('active-shade');
+      }
+
+      cell.addEventListener('click', () => {
+        document.querySelectorAll('.shade-cell').forEach(c => c.classList.remove('active-shade'));
+        cell.classList.add('active-shade');
+        
+        currentColor = colorString;
+        
+        // Update palette active states
+        colorBtns.forEach(b => b.classList.remove('active'));
+        btnRainbowPicker.classList.add('active');
+        
+        // Show selected color on rainbow button
+        btnRainbowPicker.style.background = currentColor;
+        
+        popoverRainbowPicker.classList.add('hidden');
+      });
+      
+      shadesGrid.appendChild(cell);
+    });
+  });
+}
+
 // Drawing Color selection
 colorBtns.forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.id === 'btn-rainbow-picker') {
+      popoverRainbowPicker.classList.toggle('hidden');
+      generateShadesGrid(hueSlider.value);
+      return;
+    }
+
     colorBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
+    
+    // Hide popover when selecting standard color
+    popoverRainbowPicker.classList.add('hidden');
   });
+});
+
+// Close custom color picker popover
+btnCloseRainbowPicker.addEventListener('click', () => {
+  popoverRainbowPicker.classList.add('hidden');
+});
+
+// Update grid color in real-time as Hue Slider changes
+hueSlider.addEventListener('input', (e) => {
+  generateShadesGrid(e.target.value);
 });
 
 // Brush Size selector
@@ -164,6 +231,51 @@ btnClearCanvas.addEventListener('click', () => {
   }
 });
 
+// Cooldown implementation (15-second guess limit)
+function startGuessCooldown() {
+  const btnSubmit = guessForm.querySelector('button[type="submit"]');
+  let remaining = 15;
+  
+  guessInput.disabled = true;
+  if (btnSubmit) btnSubmit.disabled = true;
+  guessInput.placeholder = `冷卻中 (${remaining}秒)...`;
+  if (btnSubmit) btnSubmit.innerText = `${remaining}s`;
+
+  if (cooldownTimer) clearInterval(cooldownTimer);
+
+  cooldownTimer = setInterval(() => {
+    remaining--;
+    guessInput.placeholder = `冷卻中 (${remaining}秒)...`;
+    if (btnSubmit) btnSubmit.innerText = `${remaining}s`;
+
+    if (remaining <= 0) {
+      clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      guessInput.disabled = false;
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = "猜";
+      }
+      guessInput.placeholder = "輸入你的答案...";
+      guessInput.focus();
+    }
+  }, 1000);
+}
+
+function clearGuessCooldown() {
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
+  const btnSubmit = guessForm.querySelector('button[type="submit"]');
+  guessInput.disabled = false;
+  if (btnSubmit) {
+    btnSubmit.disabled = false;
+    btnSubmit.innerText = "猜";
+  }
+  guessInput.placeholder = "輸入你的答案...";
+}
+
 // Guess Form Submit
 guessForm.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -171,6 +283,7 @@ guessForm.addEventListener('submit', (e) => {
   if (text) {
     socket.emit('submit-guess', text);
     guessInput.value = '';
+    startGuessCooldown();
   }
 });
 
@@ -180,6 +293,9 @@ const protestActionBar = document.getElementById('protest-action-bar');
 const overlayProtestVote = document.getElementById('overlay-protest-vote');
 const btnVoteAgree = document.getElementById('btn-vote-agree');
 const btnVoteDisagree = document.getElementById('btn-vote-disagree');
+
+const overlayClown = document.getElementById('overlay-clown');
+const btnCloseClown = document.getElementById('btn-close-clown');
 
 btnProtest.addEventListener('click', () => {
   socket.emit('submit-protest');
@@ -197,6 +313,10 @@ btnVoteDisagree.addEventListener('click', () => {
   btnVoteDisagree.style.boxShadow = '0 0 15px #ff007f';
   btnVoteAgree.disabled = true;
   btnVoteDisagree.disabled = true;
+});
+
+btnCloseClown.addEventListener('click', () => {
+  overlayClown.classList.add('hidden');
 });
 
 // --- CANVAS INTERACTION ---
@@ -496,6 +616,7 @@ socket.on('chat-message', (msg) => {
 // Round Start Event
 socket.on('round-start', (data) => {
   showScreen('game');
+  clearGuessCooldown();
   
   // Close any overlays
   document.getElementById('overlay-round-end').classList.add('hidden');
@@ -510,6 +631,10 @@ socket.on('round-start', (data) => {
   // Display prompt word based on role
   const wordDisplay = document.getElementById('game-word-display');
   const wordBanner = document.getElementById('game-word-banner');
+  
+  if (wordDisplay) {
+    wordDisplay.style.color = ""; // 重設可能被變更為紅色的文字顏色
+  }
   
   if (isDrawer) {
     wordDisplay.innerText = data.word;
@@ -564,8 +689,17 @@ socket.on('timer-update', (data) => {
 socket.on('stage-change', (data) => {
   isGameStageLocked = true;
   
-  // Show lock overlay
-  canvasLockOverlay.classList.remove('hidden');
+  // 畫手才顯示鎖定遮罩，猜題玩家不顯示（避免擋住畫作）而改為在最上方提示
+  if (isDrawer) {
+    canvasLockOverlay.classList.remove('hidden');
+  } else {
+    canvasLockOverlay.classList.add('hidden');
+    const wordDisplay = document.getElementById('game-word-display');
+    if (wordDisplay) {
+      wordDisplay.innerText = "🔒 畫板已鎖定，抓緊時間猜題！";
+      wordDisplay.style.color = "#ff3b30";
+    }
+  }
 
   // Change timer progress color to magenta/red
   const timerBar = document.getElementById('timer-bar');
@@ -602,16 +736,22 @@ socket.on('guess-received', (guess) => {
   const bubble = document.createElement('div');
   bubble.className = `guess-bubble ${isDrawer ? 'drawer-view' : ''}`;
   
-  bubble.innerHTML = `
-    <div class="guess-meta">
-      <span class="nick">${guess.nickname}</span>
-      ${isDrawer 
-        ? `<button class="guess-action-btn" data-id="${guess.id}" data-player="${guess.playerId}">判定正確</button>` 
-        : ''
-      }
-    </div>
-    <div class="guess-text">${guess.text}</div>
-  `;
+  if (isDrawer) {
+    bubble.innerHTML = `
+      <div class="guess-content-area">
+        <span class="nick">${guess.nickname}</span>
+        <div class="guess-text">${guess.text}</div>
+      </div>
+      <button class="guess-action-btn" data-id="${guess.id}" data-player="${guess.playerId}">判定正確</button>
+    `;
+  } else {
+    bubble.innerHTML = `
+      <div class="guess-meta">
+        <span class="nick">${guess.nickname}</span>
+      </div>
+      <div class="guess-text">${guess.text}</div>
+    `;
+  }
 
   // Manual judgment handler
   if (isDrawer) {
@@ -675,6 +815,7 @@ socket.on('room-detail', (room) => {
 
 // Round End Transition modal
 socket.on('round-end', (data) => {
+  clearGuessCooldown();
   const overlay = document.getElementById('overlay-round-end');
   overlay.classList.remove('hidden');
 
@@ -700,7 +841,7 @@ socket.on('round-end', (data) => {
   }
 
   // Handle Protest button display
-  if (data.isManualApproval) {
+  if (data.winnerId) {
     const isWinner = socket.id === data.winnerId;
     if (!isDrawer && !isWinner) {
       protestActionBar.classList.remove('hidden');
@@ -810,6 +951,7 @@ socket.on('protest-result', (data) => {
 
 // Protest Success Revert Game State
 socket.on('protest-revert', (data) => {
+  clearGuessCooldown();
   // Hide overlays if still open
   document.getElementById('overlay-round-end').classList.add('hidden');
   overlayProtestVote.classList.add('hidden');
@@ -818,16 +960,31 @@ socket.on('protest-revert', (data) => {
   isGameStageLocked = (data.stage === 'guess');
 
   // Restore canvas lock overlay
+  const wordDisplay = document.getElementById('game-word-display');
+  if (wordDisplay) {
+    wordDisplay.style.color = ""; // 重設文字顏色
+  }
+
   if (isGameStageLocked) {
-    canvasLockOverlay.classList.remove('hidden');
+    if (isDrawer) {
+      canvasLockOverlay.classList.remove('hidden');
+    } else {
+      canvasLockOverlay.classList.add('hidden');
+      if (wordDisplay) {
+        wordDisplay.innerText = "🔒 畫板已鎖定，抓緊時間猜題！";
+        wordDisplay.style.color = "#ff3b30";
+      }
+    }
     drawingToolsBar.classList.add('hidden');
     guessForm.style.display = 'flex';
   } else {
     canvasLockOverlay.classList.add('hidden');
     if (isDrawer) {
+      if (wordDisplay) wordDisplay.innerText = data.word;
       drawingToolsBar.classList.remove('hidden');
       guessForm.style.display = 'none';
     } else {
+      if (wordDisplay) wordDisplay.innerText = `??? (${data.difficulty === 'difficult' ? '困難難度' : '一般難度'})`;
       drawingToolsBar.classList.add('hidden');
       guessForm.style.display = 'flex';
     }
@@ -845,4 +1002,14 @@ socket.on('protest-revert', (data) => {
   } else {
     timerBar.classList.remove('locked');
   }
+});
+
+// Clown Penalty Event
+socket.on('clown-penalty', () => {
+  overlayClown.classList.remove('hidden');
+  
+  // Auto close overlay after 4 seconds
+  setTimeout(() => {
+    overlayClown.classList.add('hidden');
+  }, 4000);
 });

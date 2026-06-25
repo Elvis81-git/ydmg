@@ -1347,3 +1347,185 @@ input[type="text"]:focus {
   color: #ffcc00;
   text-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
 }
+
+/* Clown Penalty Styles */
+.clown-card {
+  border: 2px solid #ff3b30 !important;
+  box-shadow: 0 0 25px rgba(255, 59, 48, 0.4) !important;
+  animation: shake 0.5s ease-in-out infinite alternate;
+}
+.clown-emoji {
+  font-size: 5rem;
+  display: block;
+  margin-bottom: 10px;
+}
+.clown-tip {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+}
+.text-danger {
+  color: #ff3b30;
+  text-shadow: 0 0 10px rgba(255, 59, 48, 0.3);
+}
+
+/* Custom HSL Color Picker Popover Styles */
+.drawing-tools-bar {
+  position: relative; /* Ensure popover aligns relative to tools bar */
+}
+
+.rainbow-picker-popover {
+  position: absolute;
+  bottom: 115%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  background: rgba(15, 10, 30, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: popoverIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popoverIn {
+  from { transform: translateX(-50%) translateY(10px) scale(0.95); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+}
+
+.rainbow-picker-popover.hidden {
+  display: none !important;
+}
+
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.popover-header span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+}
+
+.popover-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: color 0.2s;
+}
+
+.popover-close:hover {
+  color: white;
+}
+
+.hue-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hue-slider-container label, .shades-grid-container label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.hue-slider {
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  outline: none;
+  -webkit-appearance: none;
+  background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+  cursor: pointer;
+}
+
+.hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #0f0c1b;
+  cursor: pointer;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.shades-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.shade-cell {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.shade-cell:hover {
+  transform: scale(1.15);
+  border-color: white;
+  box-shadow: 0 0 8px rgba(255,255,255,0.5);
+}
+
+.shade-cell.active-shade {
+  border-color: white;
+  box-shadow: 0 0 8px white;
+}
+
+/* Large Mark Correct Button and Drawer view bubbles */
+.guess-bubble.drawer-view {
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 16px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.guess-bubble.drawer-view .guess-content-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.guess-bubble.drawer-view .guess-action-btn {
+  align-self: center !important;
+  font-size: 1.05rem !important;
+  padding: 12px 20px !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  background: rgba(57, 255, 20, 0.2) !important;
+  border: 2px solid rgba(57, 255, 20, 0.6) !important;
+  color: var(--neon-green) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.2) !important;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.guess-bubble.drawer-view .guess-action-btn:hover {
+  background: rgba(57, 255, 20, 0.35) !important;
+  border-color: rgba(57, 255, 20, 0.8) !important;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.4) !important;
+}

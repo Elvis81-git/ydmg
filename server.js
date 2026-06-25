@@ -22,14 +22,29 @@ const charactersAndAnimals = [
   '史迪奇', '熊貓', '獅子', '老虎', '大象',
   '長頸鹿', '企鵝', '海豚', '無尾熊', '兔子',
   '貓咪', '狗狗', '狐狸', '猴子', '松鼠',
-  '倉鼠', '恐龍', '樹懶', '河馬', '斑馬'
+  '倉鼠', '恐龍', '樹懶', '河馬', '斑馬',
+  '瑪利歐', '音速小子', '蜘蛛人', '鋼鐵人', '蝙蝠俠',
+  '海綿寶寶', '派大星', '喜羊羊', '灰太狼', '巧虎',
+  '麵包超人', '哥吉拉', '鹹蛋超人', '白雪公主', '灰姑娘',
+  '美人魚', '鋼彈', '皮丘', '妙蛙種子', '傑尼龜',
+  '小火龍', '卡比獸', '伊布', '哈利波特', '佛地魔',
+  '鋼之鍊金術師', '小智', '酷企鵝', '美樂蒂', '大耳狗',
+  '布丁狗', 'Hello Kitty', '長毛象', '暴龍', '三角龍',
+  '迅猛龍', '獨角獸', '噴火龍', '大黃蜂', '胡迪',
+  '巴斯光年', '毛怪', '大眼仔', '閃電麥坤', '無臉男'
 ];
 
 const actions = [
   '游泳', '唱歌', '跳舞', '跑步', '睡覺',
   '吃東西', '打籃球', '騎自行車', '畫畫', '看書',
   '哭泣', '拍照', '玩遊戲', '爬樹', '刷牙',
-  '洗澡', '打噴嚏', '飛翔', '釣魚', '彈吉他'
+  '洗澡', '打噴嚏', '飛翔', '釣魚', '彈吉他',
+  '溜冰', '溜滑板', '彈鋼琴', '拉小提琴', '打爵士鼓',
+  '做瑜珈', '看電影', '買東西', '搭捷運', '坐飛機',
+  '開賽車', '煮飯', '洗碗', '倒垃圾', '掃地',
+  '拖地', '種花', '打排球', '踢足球', '打羽毛球',
+  '打網球', '攀岩', '溜狗', '餵貓', '講電話',
+  '敷面膜', '化妝', '剪頭髮', '喝珍珠奶茶', '吃火鍋'
 ];
 
 // Room State Storage
@@ -175,7 +190,14 @@ function endRound(roomId, winnerPlayer, penalizedDrawer, isManualApproval = fals
   }
 
   room.status = 'round-end';
-  room.canProtest = isManualApproval;
+  room.canProtest = !!winnerPlayer;
+  room.isManualApproval = isManualApproval;
+  room.protested = false; // 重設抗議標記，使下一次猜對可再次點選抗議
+  room.protestersInRound = [];
+  if (winnerPlayer) {
+    room.preProtestWinnerId = winnerPlayer.id;
+    room.preProtestWinnerScore = winnerPlayer.score - 1;
+  }
   
   // Send round end event
   io.to(roomId).emit('round-end', {
@@ -187,6 +209,8 @@ function endRound(roomId, winnerPlayer, penalizedDrawer, isManualApproval = fals
     isManualApproval: isManualApproval,
     players: room.players
   });
+
+  broadcastRoomDetail(roomId);
 
   // Schedule next round trigger (unless protest pauses it)
   room.nextRoundTimeout = setTimeout(() => {
@@ -236,6 +260,7 @@ function startRound(roomId) {
   room.canProtest = false;
   room.protested = false;
   room.recentGuesses = [];
+  room.protestersInRound = [];
 
   const drawer = room.players[room.currentDrawerIndex];
   if (!drawer) {
@@ -331,7 +356,8 @@ io.on('connection', (socket) => {
       protest: null,
       protestInterval: null,
       nextRoundTimeout: null,
-      lastApprovedGuessText: ''
+      lastApprovedGuessText: '',
+      protestersInRound: []
     };
 
     currentRoomId = roomId;
@@ -445,8 +471,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // 15 秒冷卻判定 (發言/猜題次數限制)
+    const now = Date.now();
+    if (player.lastGuessTime && (now - player.lastGuessTime) < 15000) {
+      return;
+    }
+
     const cleanGuess = guessText.trim();
     if (!cleanGuess) return;
+
+    player.lastGuessTime = now;
 
     // Check if correct
     if (cleanGuess === room.currentWord) {
@@ -522,12 +556,43 @@ io.on('connection', (socket) => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
     const room = rooms[currentRoomId];
     
-    // Protest is only valid in round-end state, if allowed, and hasn't already been triggered
-    if (room.status !== 'round-end' || !room.canProtest || room.protested) return;
+    // Protest is only valid in round-end state and if allowed
+    if (room.status !== 'round-end' || !room.canProtest) return;
 
     // Drawer and the approved winner cannot protest
     const drawer = room.players[room.currentDrawerIndex];
     if ((drawer && drawer.id === socket.id) || socket.id === room.preProtestWinnerId) return;
+
+    // 如果不是畫手手動判定（即為完整猜對正確答案的情況），抗議者會被懲罰
+    if (!room.isManualApproval) {
+      if (!room.protestersInRound) {
+        room.protestersInRound = [];
+      }
+      if (room.protestersInRound.includes(socket.id)) return; // 已經抗議過，防止重複點擊扣分
+
+      room.protestersInRound.push(socket.id);
+
+      const protester = room.players.find(p => p.id === socket.id);
+      if (protester) {
+        protester.score -= 1;
+      }
+
+      // 發送小丑懲罰事件給該抗議玩家
+      socket.emit('clown-penalty');
+
+      // 發送系統聊天訊息通知房間所有人
+      io.to(currentRoomId).emit('chat-message', {
+        nickname: '系統',
+        text: `玩家【${protester ? protester.nickname : '有人'}】對完全正確的答案提出無理抗議，被判定為小丑並扣除 1 分！🤡`,
+        isSystem: true
+      });
+
+      broadcastRoomDetail(currentRoomId);
+      return;
+    }
+
+    // 只有在手動判定且要進行抗議投票時，才設定整個房間已提出抗議
+    if (room.protested) return;
 
     room.protested = true;
     room.canProtest = false;
@@ -604,6 +669,9 @@ io.on('connection', (socket) => {
           activeRoom.status = 'playing';
           activeRoom.stage = activeRoom.preProtestStage;
           activeRoom.timeLeft = activeRoom.preProtestTimeLeft;
+          activeRoom.protested = false;
+          activeRoom.canProtest = false;
+          activeRoom.protestersInRound = [];
 
           io.to(currentRoomId).emit('protest-result', {
             success: true,
